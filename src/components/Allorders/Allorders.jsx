@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import Loading from "./../Loading/Loading";
 import EmptyContent from "../EmptyContent/EmptyContent";
 import emptyOrders from "../../assets/images/emptyOrders.svg";
@@ -11,7 +11,7 @@ export default function Allorders() {
   const { getUserAllOrders, allOrders, setAllOrders } = useContext(orderContext);
   const [isloading, setIsLoading] = useState(true);
 
-  async function getUserOrders() {
+  const getUserOrders = useCallback(async () => {
     let apiOrders = [];
     try {
       const response = await getUserAllOrders();
@@ -29,11 +29,11 @@ export default function Allorders() {
 
     setAllOrders([...localOrders, ...apiOrders]);
     setIsLoading(false);
-  }
+  }, [getUserAllOrders, setAllOrders]);
 
   useEffect(() => {
     getUserOrders();
-  }, []);
+  }, [getUserOrders]);
 
   if (isloading) return <Loading />;
   if (!allOrders || allOrders?.length <= 0) {
@@ -63,7 +63,9 @@ export default function Allorders() {
             <Link to="/products"><i className="fa-solid fa-bag-shopping me-2"></i>Continue Shopping</Link>
           </div>
           <div className="fresh-orders-list">
-            {allOrders?.map((item, index) => <Order key={item._id} item={item} expanded={index === 0} />)}
+            {allOrders?.map((item, index) => (
+              <Order key={item._id} item={item} expanded={index === 0} />
+            ))}
           </div>
         </div>
       </main>
