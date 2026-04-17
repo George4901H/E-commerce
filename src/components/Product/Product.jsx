@@ -9,7 +9,7 @@ import fallbackProduct from "../../assets/images/slider/ad-banner-2.jpg";
 
 export default function Product({ item, homeMode = false }) {
   const { setCartCounter, addToCart } = useContext(cartContext);
-  const { wishlistProductsId, addToWishlist, deleteFromWishlist } = useContext(wishlistContext);
+  const { wishlistProductsId, setWishlistProductsId, setWishlistCounter, addToWishlist, deleteFromWishlist } = useContext(wishlistContext);
   const [isLoading, setisLoading] = useState(false);
   const [isWishLoading, setisWishLoading] = useState(false);
 
@@ -28,14 +28,41 @@ export default function Product({ item, homeMode = false }) {
 
   async function toggleWishlist() {
     setisWishLoading(true);
-    if (isInWishlist) {
-      await deleteFromWishlist(item._id);
-      toast.info("Removed from wishlist");
-    } else {
-      await addToWishlist(item._id);
-      toast.success("Added to wishlist");
+    const currentWishlistIds = wishlistProductsId || [];
+
+    try {
+      if (isInWishlist) {
+        const nextIds = currentWishlistIds.filter((id) => id !== item._id);
+        setWishlistProductsId(nextIds);
+        setWishlistCounter(nextIds.length);
+        const response = await deleteFromWishlist(item._id);
+        if (response?.data?.status !== "success") throw new Error("Wishlist update failed");
+        const apiIds = response?.data?.data;
+        if (Array.isArray(apiIds)) {
+          setWishlistProductsId(apiIds);
+          setWishlistCounter(apiIds.length);
+        }
+        toast.info("Removed from wishlist");
+      } else {
+        const nextIds = [...new Set([...currentWishlistIds, item._id])];
+        setWishlistProductsId(nextIds);
+        setWishlistCounter(nextIds.length);
+        const response = await addToWishlist(item._id);
+        if (response?.data?.status !== "success") throw new Error("Wishlist update failed");
+        const apiIds = response?.data?.data;
+        if (Array.isArray(apiIds)) {
+          setWishlistProductsId(apiIds);
+          setWishlistCounter(apiIds.length);
+        }
+        toast.success("Added to wishlist");
+      }
+    } catch {
+      setWishlistProductsId(currentWishlistIds);
+      setWishlistCounter(currentWishlistIds.length);
+      toast.error("Wishlist update failed");
+    } finally {
+      setisWishLoading(false);
     }
-    setisWishLoading(false);
   }
 
   return (
@@ -48,35 +75,35 @@ export default function Product({ item, homeMode = false }) {
             {isWishLoading ? <span className="spinner-border spinner-border-sm"></span> : 
             <i className={`${isInWishlist ? 'fa-solid text-danger' : 'fa-regular'} fa-heart fs-5`}></i>}
           </button>
-          <button className="btn" data-bs-toggle="modal" data-bs-target={`#modal${item._id}`}>
+          <button className="btn" type="button" aria-label="Compare product">
             <i className="fa-solid fa-rotate"></i>
           </button>
-          <button className="btn" data-bs-toggle="modal" data-bs-target={`#modal${item._id}`}>
+          <Link className="btn" to={`/product-details/${productSlug}/${item._id}`} aria-label="View product details">
             <i className="fa-regular fa-eye"></i>
-          </button>
+          </Link>
         </div>
 
+        <div className="fresh-product-image">
+          <img
+            src={item.imageCover || fallbackProduct}
+            alt={item.title}
+            loading={homeMode ? "eager" : "lazy"}
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = fallbackProduct;
+            }}
+          />
+        </div>
+        <p className="fresh-product-category">{item.category?.name}</p>
         <Link to={`/product-details/${productSlug}/${item._id}`} className="text-decoration-none">
-          <div className="fresh-product-image">
-            <img
-              src={item.imageCover || fallbackProduct}
-              alt={item.title}
-              loading={homeMode ? "eager" : "lazy"}
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = fallbackProduct;
-              }}
-            />
-          </div>
-          <p className="fresh-product-category">{item.category?.name}</p>
           <h6 className="fresh-product-title">{item.title}</h6>
-          <div className="fresh-product-rating">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <i key={star} className={`${star <= Math.round(item.ratingsAverage || 0) ? "fa-solid" : "fa-regular"} fa-star`}></i>
-            ))}
-            <span>{item.ratingsAverage} ({item.ratingsQuantity})</span>
-          </div>
         </Link>
+        <div className="fresh-product-rating">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <i key={star} className={`${star <= Math.round(item.ratingsAverage || 0) ? "fa-solid" : "fa-regular"} fa-star`}></i>
+          ))}
+          <span>{item.ratingsAverage} ({item.ratingsQuantity})</span>
+        </div>
 
         <div className="fresh-product-bottom">
           <div>
